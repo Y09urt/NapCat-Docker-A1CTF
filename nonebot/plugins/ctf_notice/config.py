@@ -46,6 +46,7 @@ SCOREBOARD_IMAGE_CONFIG = {
 # 留空则发送到所有群组
 TARGET_GROUPS = [
     313901893,  # 你的群组ID
+    1049849561,  # 你的群组ID
     # 123456789,  # 示例群组ID
     # 987654321,  # 示例群组ID
 ]
@@ -72,3 +73,46 @@ AUTO_START = True
 
 # 积分榜触发关键词
 SCOREBOARD_KEYWORDS = ["排行榜", "积分榜", "scoreboard"]
+
+# 广告检测配置
+AD_DETECTION_CONFIG = {
+    # 是否启用自动撤回
+    "auto_delete": True,
+    
+    # 撤回阈值（风险评分超过此值将自动撤回）
+    "delete_threshold": 0.7,
+    
+    # 警告阈值（风险评分超过此值将发送警告）
+    "warning_threshold": 0.5,
+    
+    # 高风险关键词 - 单独出现即认定为广告
+    "high_risk_keywords": [
+        "广告泛滥", "即将解散", "作废", "紧急通知！！！", 
+        "务必进群", "后果自负", "最后一次提醒", "抓紧进群",
+        "已报备，管理勿撤回", "导员让转发", "错过重要通知后果自负"
+    ],
+    
+    # 群号模式 - 匹配纯数字群号（8-12位）
+    "group_number_pattern": r"\b\d{8,12}\b",
+    
+    # 中风险关键词 - 多个同时出现才认定
+    "medium_risk_keywords": [
+        "转移", "新群", "官方群", "通知群", "新生群",
+        "军训通知", "新生宿舍", "开学时间", "转换专业",
+        "十点前", "抓紧时间", "统计人数", "签到信息"
+    ],
+    
+    # 时间紧迫性词汇
+    "urgency_keywords": [
+        "紧急", "立即", "马上", "抓紧", "务必", 
+        "最后", "截止", "过期", "后果自负"
+    ],
+    
+    # 检测阈值
+    "detection_threshold": {
+        "high_risk_count": 1,      # 高风险词汇出现1个即判定
+        "medium_risk_count": 3,    # 中风险词汇出现3个以上判定
+        "urgency_count": 2,        # 紧迫性词汇出现2个以上判定
+        "has_group_number": True   # 包含群号模式
+    }
+}
