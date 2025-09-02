@@ -4,6 +4,13 @@
 logs/
 log/
 
+# 压缩文件和镜像文件
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
 # NoneBot 日志
 nonebot/logs/
 nonebot/*.log
