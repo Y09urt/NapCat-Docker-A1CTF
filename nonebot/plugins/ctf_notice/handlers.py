@@ -5,9 +5,11 @@ from nonebot.permission import SUPERUSER
 from nonebot.rule import to_me
 
 from .notice_monitor import start_notice_monitor, stop_notice_monitor, get_monitor_status
+from .config import SCOREBOARD_KEYWORDS
+from .scoreboard import generate_scoreboard
 import os
 import asyncio
-from .scoreboard_image_generator import ScoreboardImageGenerator
+import base64
 
 # 开始监控命令
 ctf_start = on_command("ctf_start", aliases={"ctf开始", "开始监控"}, priority=5)
@@ -79,39 +81,46 @@ async def handle_help():
     
     await ctf_help.finish(help_text)
 
-
-# --- 积分榜图片群聊触发 ---
+# --- 积分榜功能 ---
 scoreboard_trigger = on_message(priority=10, block=False)
 
 @scoreboard_trigger.handle()
-async def handle_scoreboard(event: GroupMessageEvent, bot: Bot):
+async def handle_scoreboard_request(event: GroupMessageEvent, bot: Bot):
+    """处理积分榜请求"""
     # 只处理群聊消息
     if not isinstance(event, GroupMessageEvent):
         return
-    text = str(event.get_message()).strip()
-    if text != "排行榜":
+    
+    # 获取消息文本
+    message_text = str(event.get_message()).strip()
+    
+    # 检查是否为积分榜关键词
+    if message_text not in SCOREBOARD_KEYWORDS:
         return
-
-    await scoreboard_trigger.send("正在生成积分榜图片，请稍候……")
-
-    # 生成图片
+    
+    # 发送生成提示
+    #await scoreboard_trigger.send("正在生成积分榜图片，请稍候……")
+    
     try:
-        # 这里可根据实际情况调整参数
-        generator = ScoreboardImageGenerator(
-            base_url="http://ctf.zypc.online:28888",  # 可根据实际API地址调整
-            token=None
-        )
-        game_id = 1  # 可根据实际比赛ID调整，或从配置读取
-        result = generator.generate_combined_image(game_id, output_dir="./images", theme="light")
-        if not result or not os.path.exists(result['table_image']):
-            await scoreboard_trigger.finish("生成积分榜图片失败，请稍后重试。")
+        # 生成积分榜
+        image_path, ranking_info = await generate_scoreboard()
+        
+        # 检查文件是否存在
+        if not os.path.exists(image_path):
+            await scoreboard_trigger.finish("❌ 积分榜图片生成失败，请稍后重试")
             return
-
-        # 发送图片
-        img_path = result['table_image']
-        await bot.send_group_msg(
-            group_id=event.group_id,
-            message=Message([MessageSegment.image(f"file:///{os.path.abspath(img_path)}")])
-        )
+        
+        # 读取图片并转换为 base64
+        with open(image_path, 'rb') as f:
+            image_data = f.read()
+            image_b64 = base64.b64encode(image_data).decode()
+        
+        # 发送图片消息（使用 base64）
+        await scoreboard_trigger.send(MessageSegment.image(f"base64://{image_b64}"))
+        
+        # 发送排名信息
+        await scoreboard_trigger.send(ranking_info)
+        
     except Exception as e:
-        await scoreboard_trigger.finish(f"生成或发送积分榜图片时出错: {e}")
+        await scoreboard_trigger.finish(f"❌ 生成积分榜时出错: {str(e)}")
+
