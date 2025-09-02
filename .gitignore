@@ -1,0 +1,68 @@
+# 日志文件
+*.log
+*.log.*
+logs/
+log/
+
+# NoneBot 日志
+nonebot/logs/
+nonebot/*.log
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 环境配置
+.env
+.env.local
+.env.*.local
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker 相关
+.dockerignore
+
+# QQ 相关数据 (敏感数据)
+ntqq/nt_qq*/
+napcat/logs/
+napcat/cache/
+
+# 积分榜图片缓存
+nonebot/scoreboard/
+nonebot/images/
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Node.js (如果有)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 配置文件中的敏感信息
+napcat/config/*token*
+napcat/config/*secret*
