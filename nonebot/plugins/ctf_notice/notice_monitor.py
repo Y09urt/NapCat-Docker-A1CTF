@@ -27,7 +27,8 @@ async def fetch_notices() -> List[Dict]:
         }
         
         cookies = {
-            'a1token': 'eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJKV1RWZXJzaW9uIjoiWlJmbElZWU1EYzhoV1E4TyIsIlJvbGUiOiJBRE1JTiIsIlVzZXJJRCI6IjhlYWI3N2M0LTViYWMtNDg1Yi1iOGJiLTg0ZTc0MjNlYjZiYyIsIlVzZXJOYW1lIjoiWW9ndXJ0IiwiZXhwIjoxNzU2ODAwNDIxLCJvcmlnX2lhdCI6MTc1NjYyNzYyMX0.M3yc5qCBtjtWgvcBx7F3e3t--zfP6jA1FquICYYIhoDpBl8mkilBLeuScuwiDpLtPfLfc6UKZCHGYKMXCLVePKYK3wiMYiK3aCxxM6hwsbIw45BWdbPPlgyzRsOgyfmRDeTsh6s3x0WTX9n_Ku9PLpQznA6sIklhRZY7llW6kojt-e2otIjf2yO8dmQaweAsBog2oqvzXCilkPJiv0HIWk_UJ7fdQ8hFa9mLfLmaRBxcMRpFeY8eWykkPw05Jx-lifL-KO4fzerizdLHD9YXNC84bREljC_G8iKttvpwXcnl42qFDpDFFbBDl3RSvANm-Uaj_n5mrzJk4uJGnNk2LQ',
+            'i18next': 'en',
+            'a1token': 'eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJKV1RWZXJzaW9uIjoiWlJmbElZWU1EYzhoV1E4TyIsIlJvbGUiOiJBRE1JTiIsIlVzZXJJRCI6IjhlYWI3N2M0LTViYWMtNDg1Yi1iOGJiLTg0ZTc0MjNlYjZiYyIsIlVzZXJOYW1lIjoiWW9ndXJ0IiwiZXhwIjoxNzU2ODI4ODE5LCJvcmlnX2lhdCI6MTc1NjY1NjAxOX0.wDkQJdaSlMM5D1VLF6s2UP50YIB6TY8iBqsKwHdq0FPppVgKx4Y2eLwpwN6H0pnygOXR8gsRev538hQp-rKQFVcE6PTrk104Wo0UAHR5wPTvrJ4FrpZ_ERZBlJeDsBEjXER945z_D6O88NSwXCacngybPQfGxFDb8uYGJXAR5Tqs22ksW-8eWK5r3hdv9JmdOi4wIoMNV49Y7WiXTVMKCPzAgrTBbWfSR5kEMrg0Kj4ymFsETMk4wwJtg8PxKO0ffWh67jCmbIPqkz7bjbRIqxsnaFORuCoH2cNZH1_2L_-43y5ZruldVrCOvoz0v-N96K0jdOE2bY6DKZuXEkAIbw'
         }
         
         async with aiohttp.ClientSession() as session:

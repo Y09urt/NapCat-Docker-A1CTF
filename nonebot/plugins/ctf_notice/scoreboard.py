@@ -167,18 +167,27 @@ def plot_and_save(scoreboard_data: Dict, save_path: str) -> None:
         plt.tight_layout()
         
         # 保存图片，使用高质量设置
-        plt.savefig(save_path, 
-                    dpi=300, 
-                    bbox_inches='tight', 
-                    facecolor='white',
-                    edgecolor='none',
-                    format='png')
-        plt.close()
-        
-        logger.info(f"✅ 积分榜图片已保存到: {save_path}")
+        try:
+            plt.savefig(save_path, 
+                        dpi=300, 
+                        bbox_inches='tight', 
+                        facecolor='white',
+                        edgecolor='none',
+                        format='png')
+            logger.info(f"✅ 积分榜图片已保存到: {save_path}")
+        except Exception as save_error:
+            logger.error(f"❌ 保存图片文件失败: {save_error}")
+            raise save_error
+        finally:
+            plt.close()  # 确保图形被关闭
         
     except Exception as e:
-        logger.error(f"生成积分榜图片失败: {e}")
+        logger.error(f"❌ 生成积分榜图片失败: {e}")
+        # 确保清理matplotlib资源
+        try:
+            plt.close('all')
+        except:
+            pass
         raise
 
 async def generate_scoreboard() -> Tuple[str, str]:
@@ -191,23 +200,46 @@ async def generate_scoreboard() -> Tuple[str, str]:
     try:
         # 获取积分榜数据
         logger.info("📡 正在获取积分榜数据...")
-        scoreboard_data = await fetch_scoreboard()
+        try:
+            scoreboard_data = await fetch_scoreboard()
+            logger.info(f"✅ 成功获取积分榜数据，队伍数量: {len(scoreboard_data.get('teams', []))}")
+        except Exception as fetch_error:
+            logger.error(f"❌ 获取积分榜数据失败: {fetch_error}")
+            raise fetch_error
         
         # 确保保存目录存在
         save_dir = SCOREBOARD_CONFIG["save_dir"]
-        os.makedirs(save_dir, exist_ok=True)
-        logger.info(f"保存目录: {save_dir}")
+        try:
+            os.makedirs(save_dir, exist_ok=True)
+            logger.info(f"📁 保存目录: {save_dir}")
+        except Exception as dir_error:
+            logger.error(f"❌ 创建保存目录失败: {dir_error}")
+            raise dir_error
         
         # 生成文件路径
         save_path = os.path.join(save_dir, SCOREBOARD_CONFIG["filename"])
-        logger.info(f"图片保存路径: {save_path}")
+        logger.info(f"💾 图片保存路径: {save_path}")
         
         # 在异步环境中使用同步绘图操作需要使用run_in_executor
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: plot_and_save(scoreboard_data, save_path)
-        )
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: plot_and_save(scoreboard_data, save_path)
+            )
+            logger.info(f"✅ 图片生成成功: {save_path}")
+        except Exception as plot_error:
+            logger.error(f"❌ 图片生成失败: {plot_error}")
+            raise plot_error
+        
+        # 验证文件是否真正生成
+        if not os.path.exists(save_path):
+            error_msg = f"图片文件未生成: {save_path}"
+            logger.error(f"❌ {error_msg}")
+            raise FileNotFoundError(error_msg)
+        
+        file_size = os.path.getsize(save_path)
+        logger.info(f"✅ 图片文件验证成功，大小: {file_size} bytes")
         
         # 生成排名信息
         ranking_info = f"📊 比赛名称: {scoreboard_data['name']}\n🏆 前三名队伍:\n"
@@ -218,5 +250,5 @@ async def generate_scoreboard() -> Tuple[str, str]:
         return save_path, ranking_info
         
     except Exception as e:
-        logger.error(f"生成积分榜失败: {e}")
+        logger.error(f"❌ 生成积分榜完全失败: {e}")
         raise

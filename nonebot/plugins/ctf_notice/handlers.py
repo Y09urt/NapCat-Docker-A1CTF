@@ -1,4 +1,4 @@
-from nonebot import on_command, on_message
+from nonebot import on_command, on_message, logger
 from nonebot.adapters.onebot.v11 import Message, GroupMessageEvent, PrivateMessageEvent, MessageSegment, Bot
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
@@ -102,6 +102,9 @@ async def handle_scoreboard_request(event: GroupMessageEvent, bot: Bot):
     #await scoreboard_trigger.send("正在生成积分榜图片，请稍候……")
     
     try:
+        # 发送生成提示
+        # await scoreboard_trigger.send("⏳ 正在生成积分榜图片，请稍候...")
+        
         # 生成积分榜
         image_path, ranking_info = await generate_scoreboard()
         
@@ -110,17 +113,67 @@ async def handle_scoreboard_request(event: GroupMessageEvent, bot: Bot):
             await scoreboard_trigger.finish("❌ 积分榜图片生成失败，请稍后重试")
             return
         
-        # 读取图片并转换为 base64
-        with open(image_path, 'rb') as f:
-            image_data = f.read()
-            image_b64 = base64.b64encode(image_data).decode()
+        # 检查文件大小
+        file_size = os.path.getsize(image_path)
+        if file_size > 5 * 1024 * 1024:  # 5MB限制
+            await scoreboard_trigger.finish("❌ 图片文件过大，无法发送")
+            return
         
-        # 发送图片消息（使用 base64）
-        await scoreboard_trigger.send(MessageSegment.image(f"base64://{image_b64}"))
+        logger.info(f"📊 积分榜图片已生成: {image_path}, 文件大小: {file_size} bytes")
+        
+        try:
+            # 读取图片并转换为 base64
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+                image_b64 = base64.b64encode(image_data).decode()
+            
+            # 发送图片消息（使用 base64）
+            await scoreboard_trigger.send(MessageSegment.image(f"base64://{image_b64}"))
+            logger.info("📊 积分榜图片发送成功")
+            
+        except Exception as img_error:
+            logger.error(f"Base64图片发送失败: {img_error}")
+            
+            # 尝试使用文件路径发送
+            try:
+                logger.info("尝试使用文件路径发送图片...")
+                await scoreboard_trigger.send(MessageSegment.image(f"file:///{image_path}"))
+                logger.info("📊 使用文件路径发送图片成功")
+            except Exception as file_error:
+                logger.error(f"文件路径发送也失败: {file_error}")
+                # 如果图片发送完全失败，至少发送文字信息
+                await scoreboard_trigger.send("❌ 图片发送失败，但这里是积分榜信息：")
         
         # 发送排名信息
         await scoreboard_trigger.send(ranking_info)
         
     except Exception as e:
+        logger.error(f"生成积分榜时出错: {e}")
         await scoreboard_trigger.finish(f"❌ 生成积分榜时出错: {str(e)}")
+
+# --- y爹检测功能 ---
+y_dad_trigger = on_message(priority=15, block=False)
+
+@y_dad_trigger.handle()
+async def handle_y_dad_request(event: GroupMessageEvent, bot: Bot):
+    """检测到y爹时发送特定内容"""
+    # 只处理群聊消息
+    if not isinstance(event, GroupMessageEvent):
+        return
+    
+    # 获取消息文本
+    message_text = str(event.get_message()).strip()
+    
+    # 检查是否包含"y爹"
+    if "y爹" not in message_text and "y 爹" not in message_text:
+        return
+    
+    # 发送特定内容
+    y_dad_response = """🖐️   🖐️      🖐️   🖐️      🖐️   🖐️
+\\😭/            \\😭/          \\😭/
+👕                👕               👕
+👖                👖               👖
+👞👞           👞👞         👞👞"""
+    
+    await y_dad_trigger.send(y_dad_response)
 
