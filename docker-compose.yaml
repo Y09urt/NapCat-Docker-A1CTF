@@ -1,0 +1,49 @@
+# docker-compose.yml
+version: "3"
+services:
+    napcat:
+        environment:
+            - NAPCAT_UID=${NAPCAT_UID:-1000}
+            - NAPCAT_GID=${NAPCAT_GID:-1000}
+            - MODE=nonebot
+        ports:
+            - 3000:3000
+            - 3001:3001
+            - 6099:6099
+        container_name: napcat
+        restart: always
+        image: mlikiowa/napcat-docker:latest
+        volumes:
+            - ./napcat/config:/app/napcat/config
+            - ./ntqq:/app/.config/QQ
+        networks:
+            - nonebot_network
+        mac_address: "02:42:ac:11:00:02"
+    
+    nonebot:
+        container_name: nonebot
+        image: python:3.11-slim
+        restart: always
+        environment:
+            - TZ=Asia/Shanghai
+        ports:
+            - 8080:8080
+        volumes:
+            - ./nonebot:/app/nonebot
+        working_dir: /app/nonebot
+        command: >
+            bash -c "
+            echo '🚀 安装依赖包...' &&
+            pip install --no-cache-dir -r requirements.txt &&
+            echo '✅ 依赖安装完成' &&
+            chmod +x start.sh &&
+            ./start.sh
+            "
+        networks:
+            - nonebot_network
+        depends_on:
+            - napcat
+
+networks:
+    nonebot_network:
+        driver: bridge

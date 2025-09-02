@@ -1,0 +1,62 @@
+# NoneBot & NapCat Docker Compose 配置文件
+# 启动命令: NAPCAT_UID=$(id -u) NAPCAT_GID=$(id -g) docker-compose -f ./compose/nonebot.yml up -d
+version: "3"
+services:
+  napcat:
+    container_name: napcat
+    image: mlikiowa/napcat-docker:latest
+    restart: always
+    environment:
+      - NAPCAT_UID=${NAPCAT_UID:-1000}
+      - NAPCAT_GID=${NAPCAT_GID:-1000}
+      - MODE=nonebot
+    ports:
+      - 6099:6099
+    volumes:
+      - ./napcat/config:/app/napcat/config
+      - ./ntqq:/app/.config/QQ
+      - ./nonebot:/nonebot
+    networks:
+      - nonebot_network
+    mac_address: "02:42:ac:11:00:02"
+
+  nonebot:
+    container_name: nonebot
+    image: python:3.11-slim
+    restart: always
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - 8080:8080
+    volumes:
+      - ./nonebot:/app/nonebot
+    working_dir: /app/nonebot
+    command: >
+      bash -c "
+      pip install nonebot2[fastapi] nonebot-adapter-onebot &&
+      if [ ! -f '.env' ]; then
+        echo 'HOST=0.0.0.0' > .env &&
+        echo 'PORT=8080' >> .env &&
+        echo 'ONEBOT_WS_URLS=[\"ws://napcat:3001\"]' >> .env
+      fi &&
+      if [ ! -f 'bot.py' ]; then
+        echo 'import nonebot' > bot.py &&
+        echo 'from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter' >> bot.py &&
+        echo '' >> bot.py &&
+        echo 'nonebot.init()' >> bot.py &&
+        echo 'driver = nonebot.get_driver()' >> bot.py &&
+        echo 'driver.register_adapter(ONEBOT_V11Adapter)' >> bot.py &&
+        echo '' >> bot.py &&
+        echo 'if __name__ == \"__main__\":' >> bot.py &&
+        echo '    nonebot.run()' >> bot.py
+      fi &&
+      python bot.py
+      "
+    networks:
+      - nonebot_network
+    depends_on:
+      - napcat
+
+networks:
+  nonebot_network:
+    driver: bridge
