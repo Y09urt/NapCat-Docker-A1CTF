@@ -8,7 +8,7 @@ from nonebot_plugin_apscheduler import scheduler
 
 from .config import (
     NOTICES_API, CHECK_INTERVAL, TARGET_GROUPS, 
-    NOTICE_CATEGORIES, MESSAGE_TEMPLATES
+    NOTICE_CATEGORIES, MESSAGE_TEMPLATES, API_CONFIG
 )
 
 # 存储已处理的通知ID
@@ -18,21 +18,13 @@ is_monitoring = False
 async def fetch_notices() -> List[Dict]:
     """获取最新的通知列表"""
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Referer': 'http://ctf.zypc.xupt.edu.cn/',
-            'Connection': 'keep-alive'
-        }
-        
-        cookies = {
-            'i18next': 'en',
-            'a1token': 'eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJKV1RWZXJzaW9uIjoiWlJmbElZWU1EYzhoV1E4TyIsIlJvbGUiOiJBRE1JTiIsIlVzZXJJRCI6IjhlYWI3N2M0LTViYWMtNDg1Yi1iOGJiLTg0ZTc0MjNlYjZiYyIsIlVzZXJOYW1lIjoiWW9ndXJ0IiwiZXhwIjoxNzU2ODI4ODE5LCJvcmlnX2lhdCI6MTc1NjY1NjAxOX0.wDkQJdaSlMM5D1VLF6s2UP50YIB6TY8iBqsKwHdq0FPppVgKx4Y2eLwpwN6H0pnygOXR8gsRev538hQp-rKQFVcE6PTrk104Wo0UAHR5wPTvrJ4FrpZ_ERZBlJeDsBEjXER945z_D6O88NSwXCacngybPQfGxFDb8uYGJXAR5Tqs22ksW-8eWK5r3hdv9JmdOi4wIoMNV49Y7WiXTVMKCPzAgrTBbWfSR5kEMrg0Kj4ymFsETMk4wwJtg8PxKO0ffWh67jCmbIPqkz7bjbRIqxsnaFORuCoH2cNZH1_2L_-43y5ZruldVrCOvoz0v-N96K0jdOE2bY6DKZuXEkAIbw'
-        }
+        # 使用统一的请求配置
+        headers = API_CONFIG["headers"]
+        cookies = API_CONFIG["cookies"]
+        timeout = API_CONFIG["notices"]["timeout"]
         
         async with aiohttp.ClientSession() as session:
-            async with session.get(NOTICES_API, headers=headers, cookies=cookies, timeout=10) as response:
+            async with session.get(NOTICES_API, headers=headers, cookies=cookies, timeout=timeout) as response:
                 logger.info(f"API请求状态: {response.status}")
                 
                 if response.status == 200:

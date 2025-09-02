@@ -13,7 +13,7 @@ import seaborn as sns
 from typing import Dict, List, Tuple, Optional
 from nonebot import logger
 
-from .config import SCOREBOARD_CONFIG
+from .config import API_CONFIG, SCOREBOARD_IMAGE_CONFIG
 
 def setup_chinese_font() -> bool:
     """设置中文字体，尝试多种字体以确保兼容性"""
@@ -57,12 +57,18 @@ sns.set_style("whitegrid")  # 设置seaborn风格
 async def fetch_scoreboard() -> Dict:
     """异步获取积分榜数据"""
     try:
+        # 使用统一的请求配置
+        headers = API_CONFIG["headers"]
+        cookies = API_CONFIG["cookies"]
+        url = API_CONFIG["scoreboard"]["url"]
+        timeout = API_CONFIG["scoreboard"]["timeout"]
+        
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                SCOREBOARD_CONFIG["url"], 
-                headers=SCOREBOARD_CONFIG["headers"], 
-                cookies=SCOREBOARD_CONFIG["cookies"],
-                timeout=aiohttp.ClientTimeout(total=30)
+                url, 
+                headers=headers, 
+                cookies=cookies,
+                timeout=aiohttp.ClientTimeout(total=timeout)
             ) as response:
                 response.raise_for_status()
                 data = await response.json()
@@ -208,7 +214,7 @@ async def generate_scoreboard() -> Tuple[str, str]:
             raise fetch_error
         
         # 确保保存目录存在
-        save_dir = SCOREBOARD_CONFIG["save_dir"]
+        save_dir = SCOREBOARD_IMAGE_CONFIG["save_dir"]
         try:
             os.makedirs(save_dir, exist_ok=True)
             logger.info(f"📁 保存目录: {save_dir}")
@@ -217,7 +223,7 @@ async def generate_scoreboard() -> Tuple[str, str]:
             raise dir_error
         
         # 生成文件路径
-        save_path = os.path.join(save_dir, SCOREBOARD_CONFIG["filename"])
+        save_path = os.path.join(save_dir, SCOREBOARD_IMAGE_CONFIG["filename"])
         logger.info(f"💾 图片保存路径: {save_path}")
         
         # 在异步环境中使用同步绘图操作需要使用run_in_executor
