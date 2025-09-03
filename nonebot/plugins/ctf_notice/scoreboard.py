@@ -381,7 +381,7 @@ async def generate_scoreboard() -> Tuple[List[str], str]:
         os.makedirs(save_dir, exist_ok=True)
         
         image_paths = []
-        ranking_info = "🏆 A1CTF 积分榜汇总\n\n"
+        ranking_info = "🏆 Newstar 积分榜汇总\n\n"
         
         # 为每个组别生成图片
         for group_info in groups:
