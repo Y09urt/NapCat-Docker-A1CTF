@@ -73,3 +73,6 @@ yarn-error.log*
 # 配置文件中的敏感信息
 napcat/config/*token*
 napcat/config/*secret*
+
+# CTF插件登录凭据
+nonebot/plugins/ctf_notice/credentials.py

@@ -20,7 +20,29 @@ cd nonebot
 pip install -r requirements.txt
 ```
 
-### 2. 配置管理员
+### 2. 配置登录凭据
+
+为了保护敏感信息，登录凭据已经分离到单独的配置文件中。
+
+1. 复制示例配置文件：
+   ```bash
+   cp nonebot/plugins/ctf_notice/credentials.example.py nonebot/plugins/ctf_notice/credentials.py
+   ```
+
+2. 编辑 `credentials.py` 文件，填入正确的登录信息：
+   ```python
+   # A1CTF平台登录凭据配置
+   A1CTF_BASE_URL = "https://your-ctf-platform.com"  # 你的A1CTF平台URL
+   A1CTF_USERNAME = "your_username"                  # 你的用户名
+   A1CTF_PASSWORD = "your_password"                  # 你的密码
+   ```
+
+**安全说明：**
+- `credentials.py` 文件已添加到 `.gitignore` 中，不会被提交到版本控制系统
+- 请妥善保管你的登录凭据，不要将其分享给他人
+- 建议使用专门的机器人账号，而不是个人主账号
+
+### 3. 配置管理员
 
 编辑 `.env` 文件，将 `SUPERUSERS` 设置为你的QQ号：
 
@@ -28,7 +50,7 @@ pip install -r requirements.txt
 SUPERUSERS=["你的QQ号"]
 ```
 
-### 3. 配置群组（可选）
+### 4. 配置群组（可选）
 
 编辑 `plugins/ctf_notice/config.py`，设置要接收通知的群组：
 
@@ -41,7 +63,7 @@ TARGET_GROUPS = [
 ]
 ```
 
-### 4. 配置API（可选）
+### 5. 配置API（可选）
 
 如果API地址发生变化，可以在 `config.py` 中修改：
 

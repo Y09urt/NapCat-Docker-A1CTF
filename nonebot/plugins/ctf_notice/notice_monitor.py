@@ -1,6 +1,5 @@
 import asyncio
 import aiohttp
-import json
 from datetime import datetime
 from typing import Dict, List, Set
 from nonebot import get_bot, logger
@@ -8,8 +7,9 @@ from nonebot_plugin_apscheduler import scheduler
 
 from .config import (
     NOTICES_API, CHECK_INTERVAL, TARGET_GROUPS, 
-    NOTICE_CATEGORIES, MESSAGE_TEMPLATES, API_CONFIG
+    NOTICE_CATEGORIES, API_CONFIG
 )
+from .a1ctf_client import get_a1ctf_client
 
 # 存储已处理的通知ID
 processed_notices: Set[int] = set()
@@ -17,33 +17,28 @@ is_monitoring = False
 
 async def fetch_notices() -> List[Dict]:
     """获取最新的通知列表"""
+    client = get_a1ctf_client()
+    if not client:
+        logger.error("A1CTF client not initialized.")
+        return []
+
     try:
-        # 使用统一的请求配置
         headers = API_CONFIG["headers"]
-        cookies = API_CONFIG["cookies"]
         timeout = API_CONFIG["notices"]["timeout"]
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(NOTICES_API, headers=headers, cookies=cookies, timeout=timeout) as response:
-                logger.info(f"API请求状态: {response.status}")
-                
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get("code") == 200:
-                        return data.get("data", [])
-                    else:
-                        logger.warning(f"API返回错误代码: {data.get('code')}")
-                elif response.status == 401:
-                    logger.error("API认证失败，可能需要登录或特殊权限")
-                elif response.status == 403:
-                    logger.error("API访问被拒绝，可能被反爬虫机制阻止")
-                else:
-                    logger.warning(f"API请求失败，状态码: {response.status}")
-                    
+        data = await client.request("GET", NOTICES_API, headers=headers, timeout=timeout)
+        
+        if data.get("code") == 200:
+            return data.get("data", [])
+        else:
+            logger.warning(f"API returned error code: {data.get('code')}, message: {data.get('message')}")
+            
+    except aiohttp.ClientResponseError as e:
+        logger.warning(f"API request failed with status: {e.status}, message: {e.message}")
     except asyncio.TimeoutError:
-        logger.error("API请求超时")
+        logger.error("API request timed out.")
     except Exception as e:
-        logger.error(f"获取通知失败: {e}")
+        logger.error(f"Failed to fetch notices: {e}")
     return []
 
 def format_notice_message(notice: Dict) -> str:

@@ -1,8 +1,18 @@
 # CTF Notice Plugin Configuration
 
+# 导入登录凭据配置
+try:
+    from .credentials import A1CTF_BASE_URL, A1CTF_USERNAME, A1CTF_PASSWORD
+except ImportError:
+    print("❌ 未找到 credentials.py 文件！")
+    print("请复制 credentials.example.py 为 credentials.py 并填入正确的登录信息")
+    A1CTF_BASE_URL = "https://ctf.zypc.online:28888"
+    A1CTF_USERNAME = "your_username"
+    A1CTF_PASSWORD = "your_password"
+
 # API配置
-NOTICES_API = "https://ctf.zypc.online:28888/api/game/3/notices"
-SCOREBOARD_API = "https://ctf.zypc.online:28888/api/game/3/scoreboard?page=1&size=20"
+NOTICES_API = f"{A1CTF_BASE_URL}/api/game/3/notices"
+SCOREBOARD_API = f"{A1CTF_BASE_URL}/api/game/3/scoreboard?page=1&size=20"
 CHECK_INTERVAL = 30  # 检查间隔（秒）
 
 # 统一的API请求配置
@@ -12,7 +22,7 @@ API_CONFIG = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'zh-CN,zh;q=0.9,en-CN;q=0.8,en;q=0.7',
-        'Referer': 'https://ctf.zypc.online:28888/',
+        'Referer': f'{A1CTF_BASE_URL}/',
         'Connection': 'keep-alive',
         'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
         'sec-ch-ua-mobile': '?0',
@@ -20,10 +30,6 @@ API_CONFIG = {
         'sec-fetch-dest': 'empty',
         'sec-fetch-mode': 'cors',
         'sec-fetch-site': 'same-origin',
-    },
-    "cookies": {
-        'i18next': 'en',
-        'a1token': 'eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.eyJKV1RWZXJzaW9uIjoiWlJmbElZWU1EYzgoV1E4TyIsIlJvbGUiOiJBRE1JTiIsIlVzZXJJRCI6IjhlYWI3N2M0LTViYWMtNDg1Yi1iOGJiLTg0ZTc0MjNlYjZiYyIsIlVzZXJOYW1lIjoiWW9ndXJ0IiwiZXhwIjoxNzU2ODI4ODE5LCJvcmlnX2lhdCI6MTc1NjY1NjAxOX0.wDkQJdaSlMM5D1VLF6s2UP50YIB6TY8iBqsKwHdq0FPppVgKx4Y2eLwpwN6H0pnygOXR8gsRev538hQp-rKQFVcE6PTrk104Wo0UAHR5wPTvrJ4FrpZ_ERZBlJeDsBEjXER945z_D6O88NSwXCacngybPQfGxFDb8uYGJXAR5Tqs22ksW-8eWK5r3hdv9JmdOi4wIoMNV49Y7WiXTVMKCPzAgrTBbWfSR5kEMrg0Kj4ymFsETMk4wwJtg8PxKO0ffWh67jCmbIPqkz7bjbRIqxsnaFORuCoH2cNZH1_2L_-43y5ZruldVrCOvoz0v-N96K0jdOE2bY6DKZuXEkAIbw'
     },
     # 不同API的特定配置
     "notices": {

@@ -14,6 +14,7 @@ from typing import Dict, List, Tuple, Optional
 from nonebot import logger
 
 from .config import API_CONFIG, SCOREBOARD_IMAGE_CONFIG
+from .a1ctf_client import get_a1ctf_client
 
 def setup_chinese_font() -> bool:
     """设置中文字体，尝试多种字体以确保兼容性"""
@@ -56,26 +57,27 @@ sns.set_style("whitegrid")  # 设置seaborn风格
 
 async def fetch_scoreboard() -> Dict:
     """异步获取积分榜数据"""
+    client = get_a1ctf_client()
+    if not client:
+        logger.error("A1CTF client not initialized.")
+        return {}
+
     try:
-        # 使用统一的请求配置
         headers = API_CONFIG["headers"]
-        cookies = API_CONFIG["cookies"]
         url = API_CONFIG["scoreboard"]["url"]
         timeout = API_CONFIG["scoreboard"]["timeout"]
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                url, 
-                headers=headers, 
-                cookies=cookies,
-                timeout=aiohttp.ClientTimeout(total=timeout)
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
-                return data['data']
+        data = await client.request("GET", url, headers=headers, timeout=timeout)
+        
+        return data.get('data', {})
+    except aiohttp.ClientResponseError as e:
+        logger.warning(f"API request failed with status: {e.status}, message: {e.message}")
+    except asyncio.TimeoutError:
+        logger.error("API request timed out.")
     except Exception as e:
         logger.error(f"获取积分榜数据失败: {e}")
-        raise
+    
+    return {}
 
 def plot_and_save(scoreboard_data: Dict, save_path: str) -> None:
     """生成并保存积分榜图表"""
