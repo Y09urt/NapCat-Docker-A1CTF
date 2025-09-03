@@ -12,7 +12,7 @@ except ImportError:
 
 # API配置
 NOTICES_API = f"{A1CTF_BASE_URL}/api/game/3/notices"
-SCOREBOARD_API = f"{A1CTF_BASE_URL}/api/game/3/scoreboard?page=1&size=20"
+SCOREBOARD_API = f"{A1CTF_BASE_URL}/api/game/3/scoreboard"  # 基础URL，参数在请求时添加
 CHECK_INTERVAL = 30  # 检查间隔（秒）
 
 # 统一的API请求配置
@@ -37,7 +37,7 @@ API_CONFIG = {
         "timeout": 10
     },
     "scoreboard": {
-        "url": SCOREBOARD_API,
+        "url": SCOREBOARD_API,  # 基础URL，支持动态参数
         "timeout": 30
     }
 }

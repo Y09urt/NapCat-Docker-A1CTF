@@ -6,7 +6,7 @@ from nonebot.rule import to_me
 
 from .notice_monitor import start_notice_monitor, stop_notice_monitor, get_monitor_status
 from .config import SCOREBOARD_KEYWORDS
-from .scoreboard import generate_scoreboard
+from .scoreboard import generate_scoreboard, generate_single_group_scoreboard, fetch_scoreboard
 from .ad_detector import detect_advertisement, log_ad_detection, get_ad_detection_summary
 import os
 import asyncio
@@ -205,55 +205,94 @@ async def handle_scoreboard_request(event: GroupMessageEvent, bot: Bot):
     # 获取消息文本
     message_text = str(event.get_message()).strip()
     
-    # 检查是否为积分榜关键词
-    if message_text not in SCOREBOARD_KEYWORDS:
-        return
+    # 检查是否为积分榜关键词或组别查询
+    is_scoreboard_request = False
+    group_id = None
     
-    # 发送生成提示
-    #await scoreboard_trigger.send("正在生成积分榜图片，请稍候……")
+    # 检查是否为基本积分榜关键词
+    if message_text in SCOREBOARD_KEYWORDS:
+        is_scoreboard_request = True
+    # 检查是否为组别查询格式：积分榜 组别ID 或 积分榜组1
+    elif any(keyword in message_text for keyword in SCOREBOARD_KEYWORDS):
+        parts = message_text.split()
+        if len(parts) >= 2:
+            try:
+                # 尝试提取组别ID
+                for part in parts[1:]:
+                    if part.isdigit():
+                        group_id = int(part)
+                        is_scoreboard_request = True
+                        break
+                    elif part.startswith('组') and len(part) > 1 and part[1:].isdigit():
+                        group_id = int(part[1:])
+                        is_scoreboard_request = True
+                        break
+            except (ValueError, IndexError):
+                pass
+    
+    if not is_scoreboard_request:
+        return
     
     try:
         # 发送生成提示
-        # await scoreboard_trigger.send("⏳ 正在生成积分榜图片，请稍候...")
+        await scoreboard_trigger.send("⏳ 正在生成积分榜图片，请稍候...")
         
-        # 生成积分榜
-        image_path, ranking_info = await generate_scoreboard()
+        if group_id is not None:
+            # 生成指定组别的积分榜
+            logger.info(f"📊 生成组别 {group_id} 的积分榜")
+            image_path, ranking_info = await generate_single_group_scoreboard(group_id)
+            image_paths = [image_path]
+        else:
+            # 生成所有组别的积分榜
+            logger.info("📊 生成所有组别的积分榜")
+            image_paths, ranking_info = await generate_scoreboard()
         
-        # 检查文件是否存在
-        if not os.path.exists(image_path):
+        # 检查是否有图片生成
+        if not image_paths:
             await scoreboard_trigger.finish("❌ 积分榜图片生成失败，请稍后重试")
             return
         
-        # 检查文件大小
-        file_size = os.path.getsize(image_path)
-        if file_size > 5 * 1024 * 1024:  # 5MB限制
-            await scoreboard_trigger.finish("❌ 图片文件过大，无法发送")
-            return
-        
-        logger.info(f"📊 积分榜图片已生成: {image_path}, 文件大小: {file_size} bytes")
-        
-        try:
-            # 读取图片并转换为 base64
-            with open(image_path, 'rb') as f:
-                image_data = f.read()
-                image_b64 = base64.b64encode(image_data).decode()
+        # 发送所有生成的图片
+        for image_path in image_paths:
+            # 检查文件是否存在
+            if not os.path.exists(image_path):
+                logger.warning(f"图片文件不存在: {image_path}")
+                continue
             
-            # 发送图片消息（使用 base64）
-            await scoreboard_trigger.send(MessageSegment.image(f"base64://{image_b64}"))
-            logger.info("📊 积分榜图片发送成功")
+            # 检查文件大小
+            file_size = os.path.getsize(image_path)
+            if file_size > 5 * 1024 * 1024:  # 5MB限制
+                logger.warning(f"图片文件过大: {image_path}")
+                continue
             
-        except Exception as img_error:
-            logger.error(f"Base64图片发送失败: {img_error}")
+            logger.info(f"📊 积分榜图片: {image_path}, 文件大小: {file_size} bytes")
             
-            # 尝试使用文件路径发送
             try:
-                logger.info("尝试使用文件路径发送图片...")
-                await scoreboard_trigger.send(MessageSegment.image(f"file:///{image_path}"))
-                logger.info("📊 使用文件路径发送图片成功")
-            except Exception as file_error:
-                logger.error(f"文件路径发送也失败: {file_error}")
-                # 如果图片发送完全失败，至少发送文字信息
-                await scoreboard_trigger.send("❌ 图片发送失败，但这里是积分榜信息：")
+                # 读取图片并转换为 base64
+                with open(image_path, 'rb') as f:
+                    image_data = f.read()
+                    image_b64 = base64.b64encode(image_data).decode()
+                
+                # 发送图片消息（使用 base64）
+                await scoreboard_trigger.send(MessageSegment.image(f"base64://{image_b64}"))
+                logger.info(f"📊 积分榜图片发送成功: {os.path.basename(image_path)}")
+                
+                # 在多个图片之间添加短暂延迟
+                if len(image_paths) > 1:
+                    await asyncio.sleep(1)
+                
+            except Exception as img_error:
+                logger.error(f"Base64图片发送失败: {img_error}")
+                
+                # 尝试使用文件路径发送
+                try:
+                    logger.info("尝试使用文件路径发送图片...")
+                    await scoreboard_trigger.send(MessageSegment.image(f"file:///{image_path}"))
+                    logger.info(f"📊 使用文件路径发送图片成功: {os.path.basename(image_path)}")
+                except Exception as file_error:
+                    logger.error(f"文件路径发送也失败: {file_error}")
+                    # 如果单个图片发送失败，继续处理下一个
+                    continue
         
         # 发送排名信息
         await scoreboard_trigger.send(ranking_info)
@@ -261,6 +300,57 @@ async def handle_scoreboard_request(event: GroupMessageEvent, bot: Bot):
     except Exception as e:
         logger.error(f"生成积分榜时出错: {e}")
         await scoreboard_trigger.finish(f"❌ 生成积分榜时出错: {str(e)}")
+
+# 添加积分榜帮助命令
+scoreboard_help = on_command("scoreboard_help", aliases={"积分榜帮助", "排行榜帮助"}, priority=5)
+
+@scoreboard_help.handle()
+async def handle_scoreboard_help():
+    """积分榜帮助命令"""
+    try:
+        # 获取可用的组别信息
+        all_data = await fetch_scoreboard()
+        groups = all_data.get('groups', [])
+        
+        help_text = """📊 积分榜功能帮助
+
+🔤 触发关键词:
+• 排行榜 / 积分榜 / scoreboard
+
+📋 可用命令:
+• 积分榜 - 查看所有组别的积分榜
+• 积分榜 组别ID - 查看指定组别的积分榜
+
+"""
+        
+        if groups:
+            help_text += "🏷️ 可用组别:\n"
+            for group in groups:
+                help_text += f"• 组别{group['group_id']}: {group['group_name']}\n"
+            
+            help_text += "\n💡 示例:"
+            help_text += f"\n• 积分榜 {groups[0]['group_id']} - 查看{groups[0]['group_name']}积分榜"
+            if len(groups) > 1:
+                help_text += f"\n• 积分榜 {groups[1]['group_id']} - 查看{groups[1]['group_name']}积分榜"
+        else:
+            help_text += "⚠️ 暂时无法获取组别信息"
+        
+        await scoreboard_help.finish(help_text)
+        
+    except Exception as e:
+        logger.error(f"获取积分榜帮助信息失败: {e}")
+        basic_help = """📊 积分榜功能帮助
+
+🔤 触发关键词:
+• 排行榜 / 积分榜 / scoreboard
+
+📋 基本用法:
+• 积分榜 - 查看所有组别的积分榜
+• 积分榜 1 - 查看组别1的积分榜
+• 积分榜 2 - 查看组别2的积分榜
+
+⚠️ 无法获取当前组别信息，请稍后重试"""
+        await scoreboard_help.finish(basic_help)
 
 # --- y爹检测功能 ---
 y_dad_trigger = on_message(priority=15, block=False)
