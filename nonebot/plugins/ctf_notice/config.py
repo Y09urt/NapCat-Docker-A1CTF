@@ -1,7 +1,7 @@
 # CTF Notice Plugin Configuration
 
 # API配置
-NOTICES_API = "https://ctf.zypc.online/api/game/3/notices"
+NOTICES_API = "https://ctf.zypc.online:28888/api/game/3/notices"
 SCOREBOARD_API = "https://ctf.zypc.online:28888/api/game/3/scoreboard?page=1&size=20"
 CHECK_INTERVAL = 30  # 检查间隔（秒）
 
