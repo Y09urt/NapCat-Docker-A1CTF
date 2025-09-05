@@ -26,6 +26,7 @@ def detect_advertisement(message: str) -> Tuple[bool, Dict]:
             "high_risk": [],
             "medium_risk": [],
             "urgency": [],
+            "disclaimer": [],
             "group_numbers": []
         }
     }
@@ -57,6 +58,13 @@ def detect_advertisement(message: str) -> Tuple[bool, Dict]:
             urgency_count += 1
             detection_result["keyword_matches"]["urgency"].append(keyword)
     
+    # 检测免责声明关键词
+    disclaimer_count = 0
+    for keyword in AD_DETECTION_CONFIG["disclaimer_keywords"]:
+        if keyword.lower() in message_lower:
+            disclaimer_count += 1
+            detection_result["keyword_matches"]["disclaimer"].append(keyword)
+    
     # 判定逻辑
     threshold = AD_DETECTION_CONFIG["detection_threshold"]
     
@@ -83,6 +91,17 @@ def detect_advertisement(message: str) -> Tuple[bool, Dict]:
             detection_result["is_ad"] = True
             detection_result["confidence"] += 0.3
             detection_result["reasons"].append(f"群号+{urgency_count}个紧迫性关键词")
+    
+    # 免责声明 + 其他特征判定
+    if disclaimer_count >= threshold.get("disclaimer_count", 1):
+        detection_result["confidence"] += 0.4
+        detection_result["reasons"].append(f"包含{disclaimer_count}个免责声明关键词")
+        
+        # 免责声明 + 中风险词汇
+        if medium_risk_count >= 2:  # 降低阈值
+            detection_result["is_ad"] = True
+            detection_result["confidence"] += 0.3
+            detection_result["reasons"].append(f"免责声明+{medium_risk_count}个中风险关键词")
     
     # 多个感叹号判定（广告常见特征）
     exclamation_count = message.count('！') + message.count('!')
