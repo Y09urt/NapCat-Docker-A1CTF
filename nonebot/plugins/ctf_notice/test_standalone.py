@@ -1,23 +1,69 @@
+#!/usr/bin/env python3
 """
-广告检测模块
+群卡片广告检测功能独立测试
+不依赖nonebot环境
 """
+
 import re
 import json
 from typing import Dict, List, Tuple
-from nonebot import logger
 
-from .config import AD_DETECTION_CONFIG
+# 配置 (从config.py复制)
+AD_DETECTION_CONFIG = {
+    "auto_delete": True,
+    "delete_threshold": 0.7,
+    "warning_threshold": 0.5,
+    "high_risk_keywords": [
+        "广告泛滥", "即将解散", "作废", "紧急通知！！！", 
+        "务必进群", "后果自负", "最后一次提醒", "抓紧进群",
+        "已报备，管理勿撤回", "导员让转发", "错过重要通知后果自负"
+    ],
+    "group_number_pattern": r"\b\d{8,12}\b",
+    "medium_risk_keywords": [
+        "转移", "新群", "官方群", "通知群", "新生群",
+        "军训通知", "新生宿舍", "开学时间", "转换专业",
+        "十点前", "抓紧时间", "统计人数", "签到信息"
+    ],
+    "urgency_keywords": [
+        "紧急", "立即", "马上", "抓紧", "务必", 
+        "最后", "截止", "过期", "后果自负"
+    ],
+    "detection_threshold": {
+        "high_risk_count": 1,
+        "medium_risk_count": 3,
+        "urgency_count": 2,
+        "has_group_number": True
+    },
+    "group_card_detection": {
+        "card_app_identifiers": [
+            "com.tencent.contact.lua",
+            "com.tencent.structmsg"
+        ],
+        "card_prompt_patterns": [
+            r"推荐群聊[：:]\s*(.+)",
+            r"邀请你加入群聊[：:]\s*(.+)",
+            r"群聊推荐[：:]\s*(.+)",
+            r"加入群聊[：:]\s*(.+)"
+        ],
+        "card_high_risk_keywords": [
+            "新生", "大一", "新生群", "新生通知群", "通知群", "答疑群",
+            "班级群", "学院群", "校群", "军训通知", "开学通知", "转专业群",
+            "2025级", "大一新生", "新生宿舍", "新生军训"
+        ],
+        "card_instant_ad_patterns": [
+            r"2025级.*新生.*群",
+            r"新生.*通知.*群", 
+            r"军训.*通知.*群",
+            r"大一.*新生.*群",
+            r"新生.*答疑.*群"
+        ],
+        "card_detection_threshold": 0.6,
+        "card_delete_threshold": 0.6
+    }
+}
 
 def detect_group_card_advertisement(message: str) -> Tuple[bool, Dict]:
-    """
-    检测群卡片邀请是否为广告
-    
-    Args:
-        message: 要检测的消息内容
-        
-    Returns:
-        Tuple[bool, Dict]: (是否为群卡片广告, 检测详情)
-    """
+    """检测群卡片邀请是否为广告"""
     detection_result = {
         "is_group_card": False,
         "is_ad": False,
@@ -111,15 +157,7 @@ def detect_group_card_advertisement(message: str) -> Tuple[bool, Dict]:
     return detection_result["is_ad"], detection_result
 
 def detect_advertisement(message: str) -> Tuple[bool, Dict]:
-    """
-    检测消息是否为广告（包括普通文本和群卡片）
-    
-    Args:
-        message: 要检测的消息内容
-        
-    Returns:
-        Tuple[bool, Dict]: (是否为广告, 检测详情)
-    """
+    """检测消息是否为广告（包括普通文本和群卡片）"""
     # 首先尝试群卡片检测
     is_group_card_ad, group_card_result = detect_group_card_advertisement(message)
     
@@ -209,34 +247,91 @@ def detect_advertisement(message: str) -> Tuple[bool, Dict]:
     
     return detection_result["is_ad"], detection_result
 
-def log_ad_detection(message: str, detection_result: Dict, user_id: str = None):
-    """记录广告检测结果"""
-    if detection_result["is_ad"]:
-        logger.warning(f"🚨 检测到广告消息 | 置信度: {detection_result['confidence']:.2f}")
-        logger.warning(f"📝 检测原因: {', '.join(detection_result['reasons'])}")
-        if user_id:
-            logger.warning(f"👤 发送者: {user_id}")
-        logger.warning(f"📄 消息内容: {message[:100]}...")
-    else:
-        logger.info(f"✅ 消息检测通过 | 置信度: {detection_result['confidence']:.2f}")
-
-def get_ad_detection_summary() -> str:
-    """获取广告检测配置摘要"""
-    config = AD_DETECTION_CONFIG
-    return f"""🛡️ 广告检测配置摘要:
+def test_integration():
+    """集成测试"""
     
-📋 检测规则:
-• 高风险关键词: {len(config['high_risk_keywords'])} 个
-• 中风险关键词: {len(config['medium_risk_keywords'])} 个  
-• 紧迫性关键词: {len(config['urgency_keywords'])} 个
-• 群号模式检测: 启用
+    print("=" * 60)
+    print("🧪 群卡片广告检测功能测试")
+    print("=" * 60)
+    
+    # 测试用的群卡片数据
+    test_messages = [
+        # 完整的群卡片JSON格式 - 应该被检测为广告
+        '[CQ:json,data={"app":"com.tencent.contact.lua","desc":"","view":"contact","ver":"0.0.0.1","prompt":"推荐群聊: 2025级大一新生通知群","config":{"autosize":true,"ctime":1693234567,"token":"xxxx"},"meta":{"contact":{"action":"","scene":"","tag":"群聊推荐"}}}]',
+        
+        # 另一种群卡片格式 - 应该被检测为广告
+        '[CQ:json,data={"app":"com.tencent.structmsg","desc":"","view":"contact","ver":"1.0.0.1","prompt":"邀请你加入群聊: 大一新生答疑群","config":{"autosize":true},"meta":{"contact":{"action":"add_group","group_id":"123456789","group_name":"大一新生答疑群"}}}]',
+        
+        # 直接的JSON数据 - 应该被检测为广告
+        '{"app":"com.tencent.contact.lua","prompt":"推荐群聊: 新生军训通知群","view":"contact","ver":"0.0.0.1","meta":{"contact":{"group_name":"新生军训通知群"}}}',
+        
+        # 正常的群卡片（非新生相关） - 风险较低
+        '[CQ:json,data={"app":"com.tencent.contact.lua","desc":"","view":"contact","ver":"0.0.0.1","prompt":"推荐群聊: 编程学习交流群","config":{"autosize":true},"meta":{"contact":{"group_name":"编程学习交流群"}}}]',
+        
+        # 普通文本广告 - 应该被检测为广告
+        '⚠️ 紧急通知！！！新生群即将解散，务必进群：123456789，错过重要通知后果自负！',
+        
+        # 正常文本消息 - 不应该被检测为广告
+        '大家好，这是一条正常的群聊消息，讨论学习内容。'
+    ]
+    
+    test_descriptions = [
+        "新生通知群卡片（高风险）",
+        "新生答疑群卡片（高风险）", 
+        "军训通知群JSON（高风险）",
+        "编程学习群卡片（低风险）",
+        "普通文本广告（高风险）",
+        "正常群聊消息（无风险）"
+    ]
+    
+    for i, (message, description) in enumerate(zip(test_messages, test_descriptions)):
+        print(f"\n🔍 测试 {i+1}: {description}")
+        print("-" * 40)
+        
+        # 执行检测
+        is_ad, result = detect_advertisement(message)
+        
+        # 显示检测结果
+        print(f"📄 消息内容: {message[:80]}{'...' if len(message) > 80 else ''}")
+        print(f"🎯 检测结果: {'🚨 疑似广告' if is_ad else '✅ 正常消息'}")
+        print(f"📊 置信度: {result['confidence']:.2f}")
+        
+        if result.get('is_group_card'):
+            print("📱 消息类型: 群聊邀请卡片")
+            card_info = result.get('card_info', {})
+            if card_info.get('group_name'):
+                print(f"🎯 推广群聊: {card_info['group_name']}")
+        else:
+            print("📱 消息类型: 普通文本")
+        
+        if result['reasons']:
+            print(f"🔍 检测原因:")
+            for reason in result['reasons']:
+                print(f"  • {reason}")
+        
+        # 显示关键词匹配（如果有）
+        if 'keyword_matches' in result:
+            matches = result['keyword_matches']
+            if any(matches.values()):
+                print(f"🔑 关键词匹配:")
+                if matches.get('high_risk'):
+                    print(f"  • 高风险: {', '.join(matches['high_risk'])}")
+                if matches.get('medium_risk'):
+                    print(f"  • 中风险: {', '.join(matches['medium_risk'])}")
+                if matches.get('urgency'):
+                    print(f"  • 紧迫性: {', '.join(matches['urgency'])}")
+                if matches.get('group_numbers'):
+                    print(f"  • 群号: {', '.join(matches['group_numbers'])}")
 
-⚖️ 判定阈值:
-• 高风险词汇: {config['detection_threshold']['high_risk_count']} 个触发
-• 中风险词汇: {config['detection_threshold']['medium_risk_count']} 个触发
-• 紧迫性词汇: {config['detection_threshold']['urgency_count']} 个触发
-
-🎯 检测策略:
-• 单个高风险词汇 → 直接判定为广告
-• 群号 + 多个中/低风险词汇 → 判定为广告
-• 多个感叹号 + 其他特征 → 提高可疑度"""
+if __name__ == "__main__":
+    try:
+        test_integration()
+        
+        print("\n" + "=" * 60)
+        print("✅ 测试完成！")
+        print("=" * 60)
+        
+    except Exception as e:
+        print(f"\n❌ 测试出错: {e}")
+        import traceback
+        traceback.print_exc()

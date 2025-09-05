@@ -6,7 +6,7 @@ from nonebot.rule import to_me
 
 from .notice_monitor import start_notice_monitor, stop_notice_monitor, get_monitor_status
 from .config import SCOREBOARD_KEYWORDS
-from .scoreboard import generate_scoreboard, generate_single_group_scoreboard, fetch_scoreboard
+from .scoreboard import generate_scoreboard
 from .ad_detector import detect_advertisement, log_ad_detection, get_ad_detection_summary
 import os
 import asyncio
@@ -205,94 +205,55 @@ async def handle_scoreboard_request(event: GroupMessageEvent, bot: Bot):
     # 获取消息文本
     message_text = str(event.get_message()).strip()
     
-    # 检查是否为积分榜关键词或组别查询
-    is_scoreboard_request = False
-    group_id = None
-    
-    # 检查是否为基本积分榜关键词
-    if message_text in SCOREBOARD_KEYWORDS:
-        is_scoreboard_request = True
-    # 检查是否为组别查询格式：积分榜 组别ID 或 积分榜组1
-    elif any(keyword in message_text for keyword in SCOREBOARD_KEYWORDS):
-        parts = message_text.split()
-        if len(parts) >= 2:
-            try:
-                # 尝试提取组别ID
-                for part in parts[1:]:
-                    if part.isdigit():
-                        group_id = int(part)
-                        is_scoreboard_request = True
-                        break
-                    elif part.startswith('组') and len(part) > 1 and part[1:].isdigit():
-                        group_id = int(part[1:])
-                        is_scoreboard_request = True
-                        break
-            except (ValueError, IndexError):
-                pass
-    
-    if not is_scoreboard_request:
+    # 检查是否为积分榜关键词
+    if message_text not in SCOREBOARD_KEYWORDS:
         return
+    
+    # 发送生成提示
+    #await scoreboard_trigger.send("正在生成积分榜图片，请稍候……")
     
     try:
         # 发送生成提示
-        await scoreboard_trigger.send("⏳ 正在生成积分榜图片，请稍候...")
+        # await scoreboard_trigger.send("⏳ 正在生成积分榜图片，请稍候...")
         
-        if group_id is not None:
-            # 生成指定组别的积分榜
-            logger.info(f"📊 生成组别 {group_id} 的积分榜")
-            image_path, ranking_info = await generate_single_group_scoreboard(group_id)
-            image_paths = [image_path]
-        else:
-            # 生成所有组别的积分榜
-            logger.info("📊 生成所有组别的积分榜")
-            image_paths, ranking_info = await generate_scoreboard()
+        # 生成积分榜
+        image_path, ranking_info = await generate_scoreboard()
         
-        # 检查是否有图片生成
-        if not image_paths:
+        # 检查文件是否存在
+        if not os.path.exists(image_path):
             await scoreboard_trigger.finish("❌ 积分榜图片生成失败，请稍后重试")
             return
         
-        # 发送所有生成的图片
-        for image_path in image_paths:
-            # 检查文件是否存在
-            if not os.path.exists(image_path):
-                logger.warning(f"图片文件不存在: {image_path}")
-                continue
+        # 检查文件大小
+        file_size = os.path.getsize(image_path)
+        if file_size > 5 * 1024 * 1024:  # 5MB限制
+            await scoreboard_trigger.finish("❌ 图片文件过大，无法发送")
+            return
+        
+        logger.info(f"📊 积分榜图片已生成: {image_path}, 文件大小: {file_size} bytes")
+        
+        try:
+            # 读取图片并转换为 base64
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+                image_b64 = base64.b64encode(image_data).decode()
             
-            # 检查文件大小
-            file_size = os.path.getsize(image_path)
-            if file_size > 5 * 1024 * 1024:  # 5MB限制
-                logger.warning(f"图片文件过大: {image_path}")
-                continue
+            # 发送图片消息（使用 base64）
+            await scoreboard_trigger.send(MessageSegment.image(f"base64://{image_b64}"))
+            logger.info("📊 积分榜图片发送成功")
             
-            logger.info(f"📊 积分榜图片: {image_path}, 文件大小: {file_size} bytes")
+        except Exception as img_error:
+            logger.error(f"Base64图片发送失败: {img_error}")
             
+            # 尝试使用文件路径发送
             try:
-                # 读取图片并转换为 base64
-                with open(image_path, 'rb') as f:
-                    image_data = f.read()
-                    image_b64 = base64.b64encode(image_data).decode()
-                
-                # 发送图片消息（使用 base64）
-                await scoreboard_trigger.send(MessageSegment.image(f"base64://{image_b64}"))
-                logger.info(f"📊 积分榜图片发送成功: {os.path.basename(image_path)}")
-                
-                # 在多个图片之间添加短暂延迟
-                if len(image_paths) > 1:
-                    await asyncio.sleep(1)
-                
-            except Exception as img_error:
-                logger.error(f"Base64图片发送失败: {img_error}")
-                
-                # 尝试使用文件路径发送
-                try:
-                    logger.info("尝试使用文件路径发送图片...")
-                    await scoreboard_trigger.send(MessageSegment.image(f"file:///{image_path}"))
-                    logger.info(f"📊 使用文件路径发送图片成功: {os.path.basename(image_path)}")
-                except Exception as file_error:
-                    logger.error(f"文件路径发送也失败: {file_error}")
-                    # 如果单个图片发送失败，继续处理下一个
-                    continue
+                logger.info("尝试使用文件路径发送图片...")
+                await scoreboard_trigger.send(MessageSegment.image(f"file:///{image_path}"))
+                logger.info("📊 使用文件路径发送图片成功")
+            except Exception as file_error:
+                logger.error(f"文件路径发送也失败: {file_error}")
+                # 如果图片发送完全失败，至少发送文字信息
+                await scoreboard_trigger.send("❌ 图片发送失败，但这里是积分榜信息：")
         
         # 发送排名信息
         await scoreboard_trigger.send(ranking_info)
@@ -300,57 +261,6 @@ async def handle_scoreboard_request(event: GroupMessageEvent, bot: Bot):
     except Exception as e:
         logger.error(f"生成积分榜时出错: {e}")
         await scoreboard_trigger.finish(f"❌ 生成积分榜时出错: {str(e)}")
-
-# 添加积分榜帮助命令
-scoreboard_help = on_command("scoreboard_help", aliases={"积分榜帮助", "排行榜帮助"}, priority=5)
-
-@scoreboard_help.handle()
-async def handle_scoreboard_help():
-    """积分榜帮助命令"""
-    try:
-        # 获取可用的组别信息
-        all_data = await fetch_scoreboard()
-        groups = all_data.get('groups', [])
-        
-        help_text = """📊 积分榜功能帮助
-
-🔤 触发关键词:
-• 排行榜 / 积分榜 / scoreboard
-
-📋 可用命令:
-• 积分榜 - 查看所有组别的积分榜
-• 积分榜 组别ID - 查看指定组别的积分榜
-
-"""
-        
-        if groups:
-            help_text += "🏷️ 可用组别:\n"
-            for group in groups:
-                help_text += f"• 组别{group['group_id']}: {group['group_name']}\n"
-            
-            help_text += "\n💡 示例:"
-            help_text += f"\n• 积分榜 {groups[0]['group_id']} - 查看{groups[0]['group_name']}积分榜"
-            if len(groups) > 1:
-                help_text += f"\n• 积分榜 {groups[1]['group_id']} - 查看{groups[1]['group_name']}积分榜"
-        else:
-            help_text += "⚠️ 暂时无法获取组别信息"
-        
-        await scoreboard_help.finish(help_text)
-        
-    except Exception as e:
-        logger.error(f"获取积分榜帮助信息失败: {e}")
-        basic_help = """📊 积分榜功能帮助
-
-🔤 触发关键词:
-• 排行榜 / 积分榜 / scoreboard
-
-📋 基本用法:
-• 积分榜 - 查看所有组别的积分榜
-• 积分榜 1 - 查看组别1的积分榜
-• 积分榜 2 - 查看组别2的积分榜
-
-⚠️ 无法获取当前组别信息，请稍后重试"""
-        await scoreboard_help.finish(basic_help)
 
 # --- y爹检测功能 ---
 y_dad_trigger = on_message(priority=15, block=False)
@@ -391,8 +301,21 @@ async def handle_ad_detection(event: GroupMessageEvent, bot: Bot):
     # 获取消息文本
     message_text = str(event.get_message()).strip()
     
-    # 跳过空消息或纯图片消息
-    if not message_text or len(message_text) < 10:
+    # 跳过空消息，但不跳过群卡片消息
+    if not message_text:
+        return
+    
+    # 特殊处理：检测是否包含群卡片邀请
+    is_group_card = any(indicator in message_text for indicator in [
+        'com.tencent.contact.lua',
+        'com.tencent.structmsg', 
+        '[CQ:json',
+        '推荐群聊',
+        '邀请你加入群聊'
+    ])
+    
+    # 对于群卡片消息，降低跳过的文本长度限制
+    if not is_group_card and len(message_text) < 10:
         return
     
     # 跳过机器人自己的消息
@@ -412,16 +335,44 @@ async def handle_ad_detection(event: GroupMessageEvent, bot: Bot):
     delete_threshold = AD_DETECTION_CONFIG.get("delete_threshold", 0.7)
     warning_threshold = AD_DETECTION_CONFIG.get("warning_threshold", 0.5)
     
-    if is_ad and auto_delete and detection_result['confidence'] >= delete_threshold:
+    # 检查是否为群卡片广告
+    is_group_card_ad = detection_result.get("is_group_card", False)
+    card_delete_threshold = AD_DETECTION_CONFIG.get("group_card_detection", {}).get("card_delete_threshold", 0.6)
+    
+    # 决定是否撤回
+    should_delete = False
+    if is_group_card_ad:
+        # 群卡片使用较低的撤回阈值
+        should_delete = detection_result['confidence'] >= card_delete_threshold
+    else:
+        # 普通消息使用标准阈值
+        should_delete = detection_result['confidence'] >= delete_threshold
+    
+    if is_ad and auto_delete and should_delete:
         try:
             # 尝试撤回消息
             await bot.delete_msg(message_id=event.message_id)
-            logger.warning(f"🚨 已自动撤回广告消息: {message_text[:50]}...")
+            logger.warning(f"🚨 已自动撤回{'群卡片' if is_group_card_ad else ''}广告消息: {message_text[:50]}...")
             
-            # 发送撤回通知（私聊给管理员或群内通知）
-            warning_message = f"""� 已自动撤回疑似广告消息
+            # 根据消息类型发送不同的撤回通知
+            if is_group_card_ad:
+                # 群卡片广告通知
+                card_info = detection_result.get("card_info", {})
+                group_name = card_info.get("group_name", "未知群聊")
+                
+                warning_message = f"""🚨 已自动撤回群卡片广告
 
-�👤 发送者: {event.sender.nickname or event.user_id}
+👤 发送者: {event.sender.nickname or event.user_id}
+📱 消息类型: 群聊邀请卡片
+🎯 推广群聊: {group_name}
+🔍 检测原因: {', '.join(detection_result['reasons'][:3])}
+
+⚠️ 请勿随意加入陌生群聊，如误判请联系管理员"""
+            else:
+                # 普通广告通知
+                warning_message = f"""🚨 已自动撤回疑似广告消息
+
+👤 发送者: {event.sender.nickname or event.user_id}
 🔍 检测原因: {', '.join(detection_result['reasons'][:3])}
 
 ⚠️ 如误判请联系管理员"""
@@ -432,7 +383,20 @@ async def handle_ad_detection(event: GroupMessageEvent, bot: Bot):
         except Exception as e:
             # 如果撤回失败（可能权限不足），则发送警告
             logger.error(f"撤回消息失败: {e}")
-            warning_message = f"""🚨 检测到疑似广告但撤回失败
+            
+            if is_group_card_ad:
+                card_info = detection_result.get("card_info", {})
+                group_name = card_info.get("group_name", "未知群聊")
+                
+                warning_message = f"""🚨 检测到群卡片广告但撤回失败
+
+👤 发送者: {event.sender.nickname or event.user_id}
+📱 消息类型: 群聊邀请卡片
+🎯 推广群聊: {group_name}
+🔍 检测原因: {', '.join(detection_result['reasons'][:2])}
+⚠️ 权限不足，请管理员手动处理"""
+            else:
+                warning_message = f"""🚨 检测到疑似广告但撤回失败
 
 👤 发送者: {event.sender.nickname or event.user_id}
 🔍 检测原因: {', '.join(detection_result['reasons'][:2])}
@@ -444,13 +408,25 @@ async def handle_ad_detection(event: GroupMessageEvent, bot: Bot):
     
     elif is_ad and detection_result['confidence'] >= warning_threshold:
         # 中等风险的消息只发送警告，不撤回
-        warning_message = f"""⚠️ 疑似广告消息警告
+        if is_group_card_ad:
+            card_info = detection_result.get("card_info", {})
+            group_name = card_info.get("group_name", "未知群聊")
+            
+            warning_message = f"""⚠️ 疑似群卡片广告警告
+        
+👤 发送者: {event.sender.nickname or event.user_id}
+🎯 推广群聊: {group_name}
+🔍 检测原因: {', '.join(detection_result['reasons'][:2])}
+
+请注意识别和防范群邀请广告！"""
+        else:
+            warning_message = f"""⚠️ 疑似广告消息警告
         
 👤 发送者: {event.sender.nickname or event.user_id}
 🔍 检测原因: {', '.join(detection_result['reasons'][:2])}
 
 请注意识别和防范广告信息！"""
         
-        logger.info(f"⚠️ 中等风险广告检测: {message_text[:50]}...")
+        logger.info(f"⚠️ 中等风险{'群卡片' if is_group_card_ad else ''}广告检测: {message_text[:50]}...")
         # await ad_monitor.send(warning_message)  # 可选择是否发送中等风险警告
 

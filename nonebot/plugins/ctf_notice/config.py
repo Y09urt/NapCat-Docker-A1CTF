@@ -12,7 +12,7 @@ except ImportError:
 
 # API配置
 NOTICES_API = f"{A1CTF_BASE_URL}/api/game/3/notices"
-SCOREBOARD_API = f"{A1CTF_BASE_URL}/api/game/3/scoreboard"  # 基础URL，参数在请求时添加
+SCOREBOARD_API = f"{A1CTF_BASE_URL}/api/game/3/scoreboard?page=1&size=20"
 CHECK_INTERVAL = 30  # 检查间隔（秒）
 
 # 统一的API请求配置
@@ -37,7 +37,7 @@ API_CONFIG = {
         "timeout": 10
     },
     "scoreboard": {
-        "url": SCOREBOARD_API,  # 基础URL，支持动态参数
+        "url": SCOREBOARD_API,
         "timeout": 30
     }
 }
@@ -95,8 +95,7 @@ AD_DETECTION_CONFIG = {
     "high_risk_keywords": [
         "广告泛滥", "即将解散", "作废", "紧急通知！！！", 
         "务必进群", "后果自负", "最后一次提醒", "抓紧进群",
-        "已报备，管理勿撤回", "导员让转发", "错过重要通知后果自负",
-        "无广", "抓紧加一下", "正规校群", "抓紧"
+        "已报备，管理勿撤回", "导员让转发", "错过重要通知后果自负"
     ],
     
     # 群号模式 - 匹配纯数字群号（8-12位）
@@ -106,21 +105,13 @@ AD_DETECTION_CONFIG = {
     "medium_risk_keywords": [
         "转移", "新群", "官方群", "通知群", "新生群",
         "军训通知", "新生宿舍", "开学时间", "转换专业",
-        "十点前", "抓紧时间", "统计人数", "签到信息",
-        "新生通知群", "新生答疑", "入学生会", "加社团", 
-        "转专业", "军训事宜", "重要通知事项", "校群"
+        "十点前", "抓紧时间", "统计人数", "签到信息"
     ],
     
     # 时间紧迫性词汇
     "urgency_keywords": [
         "紧急", "立即", "马上", "抓紧", "务必", 
-        "最后", "截止", "过期", "后果自负", "赶快"
-    ],
-    
-    # 免责声明关键词 - 广告常见的自我标榜
-    "disclaimer_keywords": [
-        "无广", "正规", "官方", "非广告", "真实", 
-        "可靠", "安全", "放心加", "绝对真实"
+        "最后", "截止", "过期", "后果自负"
     ],
     
     # 检测阈值
@@ -128,7 +119,43 @@ AD_DETECTION_CONFIG = {
         "high_risk_count": 1,      # 高风险词汇出现1个即判定
         "medium_risk_count": 3,    # 中风险词汇出现3个以上判定
         "urgency_count": 2,        # 紧迫性词汇出现2个以上判定
-        "disclaimer_count": 1,     # 免责声明词汇出现1个即可疑
         "has_group_number": True   # 包含群号模式
+    },
+    
+    # 群卡片检测配置
+    "group_card_detection": {
+        # 支持的群卡片应用类型
+        "card_app_identifiers": [
+            "com.tencent.contact.lua",
+            "com.tencent.structmsg"
+        ],
+        
+        # 群卡片提示词匹配模式
+        "card_prompt_patterns": [
+            r"推荐群聊[：:]\s*(.+)",
+            r"邀请你加入群聊[：:]\s*(.+)",
+            r"群聊推荐[：:]\s*(.+)",
+            r"加入群聊[：:]\s*(.+)"
+        ],
+        
+        # 群卡片高风险关键词
+        "card_high_risk_keywords": [
+            "新生", "大一", "新生群", "新生通知群", "通知群", "答疑群",
+            "班级群", "学院群", "校群", "军训通知", "开学通知", "转专业群",
+            "2025级", "大一新生", "新生宿舍", "新生军训"
+        ],
+        
+        # 即时广告模式 - 匹配到立即判定为广告
+        "card_instant_ad_patterns": [
+            r"2025级.*新生.*群",
+            r"新生.*通知.*群", 
+            r"军训.*通知.*群",
+            r"大一.*新生.*群",
+            r"新生.*答疑.*群"
+        ],
+        
+        # 群卡片检测阈值
+        "card_detection_threshold": 0.6,  # 群卡片检测的置信度阈值（低于普通文本）
+        "card_delete_threshold": 0.6      # 群卡片撤回的置信度阈值
     }
 }
