@@ -76,3 +76,4 @@ napcat/config/*secret*
 
 # CTF插件登录凭据
 nonebot/plugins/ctf_notice/credentials.py
+A1CTF
